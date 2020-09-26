@@ -1,0 +1,7 @@
+.vscode
+*/.vscode
+hw1/test_files/*
+*.tmp
+*.pdf
+*.o
+*.d
