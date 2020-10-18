@@ -4,26 +4,26 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#define barWidth 50
 using namespace std;
 // https://stackoverflow.com/questions/14539867/how-to-display-a-progress-indicator-in-pure-c-c-cout-printf
-void progress_bar(float progress, int barWidth, long current = -1, long tot = -1)
+void progress_bar(size_t current, size_t tot)
 {
-  cout << "[";
+  double progress = (double)current / tot;
+  printf("[");
   int pos = barWidth * progress;
   for (int i = 0; i < barWidth; ++i)
   {
     if (i < pos)
-      cout << "=";
+      printf("=");
     else if (i == pos)
-      cout << ">";
+      printf(">");
     else
-      cout << " ";
+      printf(" ");
   }
-  if (tot == -1)
-    cout << "] " << int(progress * 100.0) << " %\r";
-  else
-    cout << "] " << current << "/" << tot << " " << setprecision(2) << fixed << (progress * 100.0f) << " % \r";
-
-  cout.flush();
+  printf("] %zu/%zu %.2f %%\r", current, tot, progress * 100.0);
+  fflush(stdout);
+  // cout << "] " << current << "/" << tot << " " << setprecision(2) << fixed << (progress * 100.0) << " % \r";
+  // cout.flush();
 }
 #endif // PROGRESS_BAR_H

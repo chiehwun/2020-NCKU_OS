@@ -55,7 +55,7 @@ long generate(string filename, int mode = 0, int default_size = 500) // default_
     memTot <<= 10; // change KiB to Bytes
 
     /*********** Toggle File size by mode ************/
-    const long Filesize = (mode == 1 ? memTot : default_size << 20); // byte
+    const long Filesize = (mode == 1 ? memTot : default_size << 20); // Bytes
 
     cout << "MemTotal:\t" << memTot << "\tbyte" << endl;
     cout << "File size:\t" << Filesize << "\tbyte" << endl;
@@ -73,8 +73,7 @@ long generate(string filename, int mode = 0, int default_size = 500) // default_
         if (buffer.size() > buffer_size)
         {
             outFile << buffer;
-            progress_bar((float)outFile.tellp() / Filesize, 100,
-                         outFile.tellp(), Filesize);
+            progress_bar(outFile.tellp(), Filesize);
             buffer.clear();
         }
     }

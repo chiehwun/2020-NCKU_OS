@@ -1,7 +1,74 @@
-.vscode
-*/.vscode
-hw1/test_files/*
+# all
 *.tmp
-*.pdf
-*.o
+
+# hw1_Benchmark
+hw1_Benchmark/test_files/*.txt
+hw1_Benchmark/test_files/run/*.run
+hw1_Benchmark/test_files/run/run.info
+
+# hw2_ETL_process
+hw2_ETL_process/*.csv
+hw2_ETL_process/*.txt
+
+### C++ ###
+# Prerequisites
 *.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+### Vim ###
+# Swap
+[._]*.s[a-v][a-z]
+!*.svg  # comment out if you don't need vector files
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# Session
+Session.vim
+Sessionx.vim
+
+# Temporary
+.netrwhist
+*~
+# Auto-generated tag files
+tags
+# Persistent undo
+[._]*.un~
+
+### vscode ###
+.vscode/*
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
+*.code-workspace
