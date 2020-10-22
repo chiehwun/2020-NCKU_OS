@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
     read_arg(argc, argv, argsets, modes);
 
     cout.imbue(locale("")); // Print integer with thousands and millions separator
-    cerr.imbue(locale(""));
     Clock clock;
     if (modes[2]) // -i toggled
     {

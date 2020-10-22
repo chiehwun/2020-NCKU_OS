@@ -15,6 +15,8 @@ using namespace std;
 void create_data_thread();
 void create_data_backup();
 
+// const long DATA_SZ = 1000;  // 500 B
+// const long BF_WRT_SZ = 250; // 5 MiB
 const long DATA_SZ = 1L << 30;        // 1 GiB
 const long BF_WRT_SZ = (1 << 20) * 5; // 5 MiB
 long dx = 0L;                         // Current file size
@@ -31,7 +33,7 @@ int main(int argc, char *argv[])
     Clock clk;
     clk.start();
 
-    create_data_thread();
+    create_data_backup();
 
     clk.stop();
     cout.imbue(locale(""));

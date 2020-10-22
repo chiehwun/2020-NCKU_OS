@@ -1,0 +1,1 @@
+make && ./converter $1
