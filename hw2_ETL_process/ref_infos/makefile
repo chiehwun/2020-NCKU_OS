@@ -1,13 +1,13 @@
-all: test_thread test_infile_mult limit_of_file_pointer
+all: test_thread.out test_infile_mult.out limit_of_file_pointer.out
 
-test_thread: test_thread.cpp
-	g++ -pthread -o test_thread test_thread.cpp
+test_thread.out: test_thread.cpp
+	g++ -pthread -o test_thread.out test_thread.cpp
 
-test_infile_mult: test_infile_mult.cpp
-	g++ -pthread -o test_infile_mult test_infile_mult.cpp
+test_infile_mult.out: test_infile_mult.cpp
+	g++ -pthread -o test_infile_mult.out test_infile_mult.cpp
 
-limit_of_file_pointer: limit_of_file_pointer.cpp
-	g++ -o limit_of_file_pointer limit_of_file_pointer.cpp
+limit_of_file_pointer.out: limit_of_file_pointer.cpp
+	g++ -o limit_of_file_pointer.out limit_of_file_pointer.cpp
 
 clean:
-	rm test_thread test_infile_mult limit_of_file_pointer -v
+	rm *.out -v

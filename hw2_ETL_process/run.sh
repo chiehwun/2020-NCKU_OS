@@ -1,1 +1,1 @@
-make && ./converter $1
+make && ./converter.out $1
