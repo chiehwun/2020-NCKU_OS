@@ -1,4 +1,5 @@
 // g++ -o delete_last_char.out delete_last_char.cpp -lstdc++fs && ./delete_last_char.out && cat test.txt
+// Failed
 #include <fstream>
 #include <iostream>
 #include <experimental/filesystem>

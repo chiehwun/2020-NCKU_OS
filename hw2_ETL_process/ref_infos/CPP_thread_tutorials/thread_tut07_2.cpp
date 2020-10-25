@@ -8,7 +8,7 @@
 #include <thread>
 #include <condition_variable> // Prevent wasting resource
 #include <mutex>              // Solve the race condition
-// by synchronizing the access of the common resource
+                              // by synchronizing the access of the common resource
 #include <future>
 
 using std::cout;

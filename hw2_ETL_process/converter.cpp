@@ -3,35 +3,40 @@
 #include <iomanip>
 #include <fstream>
 #include <cstdlib>
-#include <ctime>
-#include <random>
 #include <string>
 #include <climits>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <future>
 #include <chrono>
 #include "progress_bar.h"
 #include "Clock.h"
 #include <experimental/filesystem>
+#include "Scheduler.h"
 
+#define TEST
 #define THREAD_MAX 100
 #define COL_NUM 20
 
 using namespace std;
 namespace fs = experimental::filesystem;
 
+mutex mu_cout;
+mutex mu_remove;
 const long BF_RD_SZ = (1 << 10) * 5 * COL_NUM; // 5 KiB lines
 // const long BF_WRT_SZ = (1 << 20) * 5;          // 5 MiB
-ofstream logFile("log.log", std::ios::out);
+fstream logFile("log.log", ios::out);
 const string INDENT = "    ";
 const string INDENT2 = "        ";
+#ifdef DEBUG
 typedef struct
 {
     long line;
     long pos;
 } Line_Pos;
 vector<Line_Pos> LP_tab;
+#endif
 typedef struct
 {
     long line_cur;
@@ -53,7 +58,6 @@ long getFilesize(const string filename)
         return -1L;
     }
 }
-
 long getFileline(const string filename)
 {
     ifstream inFile(filename, ios::in);
@@ -64,26 +68,27 @@ long getFileline(const string filename)
     }
     long line;
     string str;
-    for (line = 0; getline(inFile, str); ++line)
-        ;
+    for (line = 0; getline(inFile, str);)
+        if (!str.empty()) // avoid counting '\n' at the end of the file
+            ++line;
     inFile.close();
     return line;
 }
 void single_threaded();
 void multi_threaded(string inFilename, string outFilename, const int thread_n, long infile_line_tot);
-bool concatenate(vector<Prog> &thd_log, string outFilename);
-bool concatenate_mult(vector<Prog> &thd_log, string outFilename);
+void concatenate_mult(vector<Prog> &thd_log, string outFilename);
 
 int main(int argc, char *argv[])
 {
-    vector<Prog> thd_log;
-    concatenate_mult(thd_log, "123");
-    return 0;
     // Define input and output files
     const string inFilename = "input.csv";
-    const string outFilename = "output.txt";
+    const string outFilename = "output.json";
     const long infile_size = getFilesize(inFilename);
     const long infile_line_tot = getFileline(inFilename);
+
+    // Remove "output.txt"
+    if (remove(outFilename.c_str()) == 0)
+        cout << "remove \"" << outFilename << "\" successfully.";
 
     // Read argument from terminal
     if (argc < 2)
@@ -109,27 +114,70 @@ int main(int argc, char *argv[])
     cout << left << setw(35) << "BF_RD_SZ:"
          << right << setw(16) << BF_RD_SZ << "\n";
 
-    Clock clk;
-    clk.start();
-    multi_threaded(inFilename, outFilename, threads_num, infile_line_tot);
-    // single_threaded(inFilename, outFilename, infile_line_tot);
-    clk.stop();
+    if (argc == 3)
+    {
+        cout << "\n********** THIS IS a TEST **********\n";
+        const int count = atoi(argv[2]);
+        vector<long> log(threads_num + 1, 0L);
+        for (int i = 0; i < count; ++i)
+        {
+            for (int t = 1; t <= threads_num; ++t)
+            {
+                Clock clk;
+                clk.start();
+                multi_threaded(inFilename, outFilename, t, infile_line_tot);
+                // single_threaded(inFilename, outFilename, infile_line_tot);
+                clk.stop();
+                // show infos
+                cout << left << setw(35) << "threads_num:"
+                     << right << setw(16) << t << "\n";
+                cout << left << setw(35) << "EX. time of [converter.cpp]:"
+                     << right << setw(16) << clk.getElapsedTime() << " ms\n";
+                cout << left << setw(35) << "\"" + outFilename + "\" size:"
+                     << right << setw(16) << getFilesize(outFilename) << " Bytes\n";
+                logFile << t << ',' << clk.getElapsedTime() << ',' << getFilesize(outFilename) << '\n';
+                log.at(t) += clk.getElapsedTime();
+            }
+        }
+        fstream avglogFile("avg.log", ios::out);
+        for (int t = 1; t <= threads_num; ++t)
+            avglogFile << t << ',' << log.at(t) / count << '\n';
+        avglogFile.close();
+        avglogFile.open("avg.log", ios::binary | ios::app);
+        logFile.close();
+        logFile.open("log.log", ios::binary | ios::in);
 
-    cout << left << setw(35) << "EX. time of [converter.cpp]:"
-         << right << setw(16) << clk.getElapsedTime() << " ms\n";
-    cout << left << setw(35) << "\"" + outFilename + "\" size:"
-         << right << setw(16) << getFilesize(outFilename) << " Bytes\n";
+        avglogFile << "====================\n"
+                   << logFile.rdbuf();
+        avglogFile.close();
+        remove("log.log");
+    }
+    else
+    {
+        Clock clk;
+        clk.start();
+        multi_threaded(inFilename, outFilename, threads_num, infile_line_tot);
+        // single_threaded(inFilename, outFilename, infile_line_tot);
+        clk.stop();
+        cout << left << setw(35) << "threads_num:"
+             << right << setw(16) << threads_num << "\n";
+        cout << left << setw(35) << "EX. time of [converter.cpp]:"
+             << right << setw(16) << clk.getElapsedTime() << " ms\n";
+        cout << left << setw(35) << "\"" + outFilename + "\" size:"
+             << right << setw(16) << getFilesize(outFilename) << " Bytes\n";
+    }
+
     logFile.close();
     return 0;
 }
 
-void show_mult_prog(int thread_n, vector<Prog> &thd_log)
+void show_mult_prog(vector<Prog> &thd_log)
 {
     bool flag;
     do
     {
         flag = false;
-        for (int i = 0; i < thread_n; ++i)
+        for (int i = 0; i < thd_log.size(); ++i)
         {
             cout << "[t" << i << ": " << setw(4) << fixed << setprecision(1)
                  << 100.0 * thd_log.at(i).line_cur / thd_log.at(i).line_tot << "%] ";
@@ -137,7 +185,7 @@ void show_mult_prog(int thread_n, vector<Prog> &thd_log)
         }
         cout << "\r";
         cout.flush();
-        this_thread::sleep_for(std::chrono::milliseconds(1));
+        this_thread::sleep_for(std::chrono::milliseconds(200));
     } while (flag);
 
     cout << endl;
@@ -147,18 +195,21 @@ void locate_infs_thd(vector<ifstream> &infs_thd, long infile_line_tot, long line
 {
     string str;
     int thread = 0;
-    long line;
+    long line, pos;
     for (line = 0; line < infile_line_tot; ++line)
     {
         if (line % line_per_thd == 0)
         {
-            LP_tab.push_back(Line_Pos{.line = line,
-                                      .pos = infs_thd[0].tellg()});
+            pos = infs_thd[0].tellg();
+            // LP_tab.push_back(Line_Pos{.line = line,
+            //                           .pos = pos});
             if (thread != 0) // infs_thd[0] do not have to change
-                infs_thd[thread].seekg(LP_tab.back().pos);
-            cout << LP_tab.back().line << " : "
-                 << LP_tab.back().pos << " : "
+                infs_thd[thread].seekg(pos);
+#ifdef DEBUG
+            cout << line << " : "
+                 << pos << " : "
                  << infs_thd[thread].tellg() << endl;
+#endif
             ++thread;
         }
         getline(infs_thd[0], str);
@@ -168,11 +219,13 @@ void locate_infs_thd(vector<ifstream> &infs_thd, long infile_line_tot, long line
     infs_thd[0].seekg(0, ios::beg);
 }
 
-void multi_thread_shots(const int thread, vector<Prog> &thd_log, ifstream &infs, ofstream &outfs)
+void write_by_threads(const int thread, vector<Prog> &thd_log, ifstream &infs, ofstream &outfs)
 {
     const int thread_n = thd_log.size();
     int buffer[BF_RD_SZ] = {};
     long line = 0, size = 0, line_end = thd_log[thread].line_tot;
+    if (thread == 0)
+        outfs << "[\n";
     while (line < line_end)
     {
         // DISK -> MEM
@@ -201,9 +254,19 @@ void multi_thread_shots(const int thread, vector<Prog> &thd_log, ifstream &infs,
         }
         thd_log.at(thread).line_cur = line; // update progress
     }
+    if (thread == thread_n - 1)
+        outfs << "]";
     // Close all files
     infs.close();
     outfs.close();
+}
+
+void concatenate_mult(vector<Prog> &thd_log, string outFilename)
+{
+    Scheduler sch(thd_log.size());
+    sch.start();
+    sch.join();
+    rename("0.thdout", outFilename.c_str());
 }
 
 void multi_threaded(string inFilename, string outFilename, const int thread_n, long infile_line_tot)
@@ -245,30 +308,32 @@ void multi_threaded(string inFilename, string outFilename, const int thread_n, l
     locate_infs_thd(infs_thd, infile_line_tot, line_per_thd);
     // Multi-threaded conversion
     cout << "\n=============== Multi-threaded conversion ===============\n";
-    // Test by sequence
+    // (1) Test by sequence
     // for (int i = 0; i < thread_n; ++i)
-    //     multi_thread_shots(i, ref(thd_log), ref(infs_thd[i]), ref(ofs_thd[i]));
+    //     write_by_threads(i, ref(thd_log), ref(infs_thd[i]), ref(ofs_thd[i]));
 
+    // (2) Multi-thread writing
     thread shot[thread_n];
     for (int i = 0; i < thread_n; ++i)
-        shot[i] = thread(multi_thread_shots, i, ref(thd_log), ref(infs_thd[i]), ref(ofs_thd[i]));
-    this_thread::sleep_for(chrono::milliseconds(1000)); // wait for 1 sec to launch monitor
-    thread monitor(show_mult_prog, thread_n, ref(thd_log));
+        shot[i] = thread(write_by_threads, i, ref(thd_log), ref(infs_thd[i]), ref(ofs_thd[i]));
+    // this_thread::sleep_for(chrono::milliseconds(1000)); // wait for 1 sec to launch monitor
+    thread monitor(show_mult_prog, ref(thd_log));
 
     for (int i = 0; i < thread_n; ++i)
         shot[i].join();
     monitor.join();
-    for (int i = 0; i < thd_log.size(); ++i)
-    {
-        logFile << thd_log[i].line_cur << '\t'
-                << thd_log[i].line_tot << '\t'
-                << thd_log[i].filename << '\n';
-    }
+    // for (int i = 0; i < thd_log.size(); ++i)
+    // {
+    //     logFile << thd_log[i].line_cur << '\t'
+    //             << thd_log[i].line_tot << '\t'
+    //             << thd_log[i].filename << '\n';
+    // }
 
-    // Concatenate *.thdout files parellel
-    concatenate(thd_log, outFilename);
+    // Concatenate *.thdout files parallel
+    concatenate_mult(thd_log, outFilename);
 }
 
+// Useless Area Below
 void recover_log(vector<Prog> &thd_log, int thread_n)
 {
     thd_log.clear();
@@ -278,28 +343,7 @@ void recover_log(vector<Prog> &thd_log, int thread_n)
                                .filename = to_string(i) + ".thdout"});
 }
 
-bool concatenate_mult(vector<Prog> &thd_log, string outFilename)
-{
-    recover_log(thd_log, 5);
-    int thread_n = thd_log.size();
-    // Scheduler
-    while (thd_log.size() > 1)
-    {
-        for (int i = 0; i < thd_log.size() / 2; ++i)
-            cout << "thread(" << thd_log[i * 2].filename << ", " << thd_log[i * 2 + 1].filename << ")\n";
-        // thread shot(i);
-        for (int i = 0; i < thd_log.size() / 2; ++i)
-            cout << "join(" << thd_log[i * 2].filename << ", " << thd_log[i * 2 + 1].filename << ")\n";
-        // shot(i).join();
-        for (int i = (thd_log.size() % 2 == 0 ? thd_log.size() - 1 : thd_log.size() - 2);
-             i > 0 / 2; i -= 2)
-            thd_log.erase(thd_log.begin() + i);
-    }
-
-    return true;
-}
-
-bool concatenate(vector<Prog> &thd_log, string outFilename)
+bool concatenate_single(vector<Prog> &thd_log, string outFilename)
 {
     for (int i = 0; i < thd_log.size(); ++i)
         cout << setw(10) << thd_log.at(i).filename << ": "
