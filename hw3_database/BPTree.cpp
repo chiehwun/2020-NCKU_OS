@@ -17,26 +17,20 @@ BPTree::BPTree()
 
 // Function to find any element
 // in B+ Tree
-void BPTree::search(int64_t x)
+bool BPTree::search(int64_t x)
 {
     // If tree is empty
     if (root == NULL)
         cout << "Tree is empty\n";
-
     // Traverse to find the value
     else
     {
-
         Node *cursor = root;
-
         // Till we reach leaf node
-        while (cursor->IS_LEAF == false)
+        while (!cursor->IS_LEAF)
         {
-
-            for (int i = 0;
-                 i < cursor->size; i++)
+            for (int i = 0; i < cursor->size; i++)
             {
-
                 // If the element to be
                 // found is not present
                 if (x < cursor->key[i])
@@ -57,21 +51,20 @@ void BPTree::search(int64_t x)
 
         // Traverse the cursor and find
         // the node with value x
-        for (int i = 0;
-             i < cursor->size; i++)
+        for (int i = 0; i < cursor->size; i++)
         {
-
             // If found then return
             if (cursor->key[i] == x)
             {
-                cout << "Found\n";
-                return;
+                // cout << "Found\n";
+                return true;
             }
         }
 
         // Else element is not present
-        cout << "Not found\n";
+        // cout << "Not found\n";
     }
+    return false;
 }
 
 // Function to implement the Insert
@@ -82,6 +75,7 @@ void BPTree::insert(int64_t x, string y)
     // newly created node
     if (root == NULL)
     {
+        cout << "case (A)" << endl;
         root = new Node;
         root->key[0] = x;
         root->str[0] = y;
@@ -119,6 +113,7 @@ void BPTree::insert(int64_t x, string y)
         }
         if (cursor->size < MAX)
         {
+            cout << "case (B)" << endl;
             int i = 0;
             // TODO: CHANGE TO BINARY SEARCH
             while (x > cursor->key[i] && i < cursor->size)
@@ -188,6 +183,7 @@ void BPTree::insert(int64_t x, string y)
             // If cursor is the root node
             if (cursor == root)
             {
+                cout << "case (C)" << endl;
                 // Create a new Node
                 Node *newRoot = new Node;
 
@@ -222,7 +218,7 @@ void BPTree::insertInternal(int64_t x,
     // If parent not overflow
     if (cursor->size < MAX)
     {
-        cerr << "call insertInternal(): case (D)" << endl;
+        cout << "case (D): call insertInternal()" << endl;
         int i = 0;
         // Traverse the child node
         // for current cursor node
@@ -257,42 +253,44 @@ void BPTree::insertInternal(int64_t x,
         // of cursor node to virtualKey
         for (int i = 0; i < MAX; i++)
             virtualKey[i] = cursor->key[i];
-
         // Insert the current list ptr
         // of cursor node to virtualPtr
         for (int i = 0; i < MAX + 1; i++)
             virtualPtr[i] = cursor->ptr[i];
-
-        int i = 0, j;
-
         // Traverse to find where the new
         // node is to be inserted
-        while (x > virtualKey[i] && i < MAX)
-            i++;
-
+        int pos = 0;
+        while (x > virtualKey[pos] && pos < MAX)
+            pos++;
         // Traverse the virtualKey node
         // and update the current key
         // to its previous node key
         // (MAX + 1)->(MAX)??
-        for (int j = MAX; j > i; j--)
+        for (int j = MAX; j > pos; j--)
             virtualKey[j] = virtualKey[j - 1];
-
-        virtualKey[i] = x;
+        virtualKey[pos] = x;
 
         // Traverse the virtualKey node
         // and update the current ptr
         // to its previous node ptr
         // (MAX + 2)->(MAX + 1)??
-        for (int j = MAX + 1; j > i + 1; j--)
+        for (int j = MAX + 1; j > pos + 1; j--)
             virtualPtr[j] = virtualPtr[j - 1];
+        virtualPtr[pos + 1] = child;
 
-        virtualPtr[i + 1] = child;
-        newInternal->IS_LEAF = false;
-        // Update size
+        // Split the size
         cursor->size = (MAX + 1) / 2;
         newInternal->size = MAX - (MAX + 1) / 2; // drop one off
+        newInternal->IS_LEAF = false;
 
-        // Insert new node as an internal node
+        int i = 0, j = 0;
+        // Update cursor node key
+        for (i = pos, j = pos; i < cursor->size; ++i, ++j)
+            cursor->key[i] = virtualKey[j];
+        for (i = pos + 1, j = pos + 1; i < cursor->size + 1; ++i, ++j)
+            cursor->ptr[i] = virtualPtr[j];
+
+        // Insert newInternal as an internal node
         for (i = 0, j = cursor->size + 1;
              i < newInternal->size; i++, j++)
             newInternal->key[i] = virtualKey[j];
@@ -303,12 +301,12 @@ void BPTree::insertInternal(int64_t x,
         // If cursor is the root node
         if (cursor == root)
         {
-            cerr << "call insertInternal(): case (E)" << endl;
+            cout << "case (E): call insertInternal()" << endl;
             // Create a new root node
             Node *newRoot = new Node;
 
             // Update key value
-            newRoot->key[0] = cursor->key[cursor->size];
+            newRoot->key[0] = virtualKey[cursor->size];
 
             // Update rest field of
             // B+ Tree Node
@@ -320,7 +318,7 @@ void BPTree::insertInternal(int64_t x,
         }
         else
         {
-            cerr << "call insertInternal(): case (F)" << endl;
+            cout << "case (F): call insertInternal()" << endl;
             // Recursive Call to insert the data
             insertInternal(cursor->key[cursor->size],
                            findParent(root, cursor),
@@ -416,5 +414,107 @@ void BPTree::display_leaf()
             cursor = cursor->ptr[cursor->size];
         }
         cout << endl;
+    }
+}
+
+void BPTree::visualize(int width)
+{
+    visualize(root, width, 0);
+}
+
+void BPTree::visualize(Node *root, int width, int lay)
+{
+    if (!root)
+        return;
+    for (int i = 0; i <= root->size; ++i)
+    {
+        if (!root->IS_LEAF || i < root->size)
+        {
+            cout << str_repeat(lay - 1, "│" + string(width, ' '));
+            if (lay > 0)
+            {
+                bool islast = root->IS_LEAF ? (i == root->size - 1) : (i == root->size);
+                cout << (islast ? "└" : "├"); // last key
+                cout << str_repeat(width, "─");
+            }
+            cout << setprecision(width)
+                 << (i == root->size ? "X" : to_string(root->key[i]))
+                 << endl;
+            BPTree::visualize(root->ptr[i], width, lay + 1);
+        }
+    }
+}
+
+string BPTree::str_repeat(int n, const string str)
+{
+    string copy = "";
+    for (int i = 0; i < n; ++i)
+        copy += str;
+    return copy;
+}
+
+void BPTree::check(int64_t key_num)
+{
+    queue<int64_t> all_keys;
+    if (root == NULL)
+    {
+        cout << "empty tree." << endl;
+        return;
+    }
+    // Traverse the B+ Tree
+    Node *cursor = root;
+    // Till cursor reaches the leaf node
+    while (!cursor->IS_LEAF)
+        cursor = cursor->ptr[0];
+    while (cursor)
+    {
+        for (int i = 0; i < cursor->size; ++i)
+            all_keys.push(cursor->key[i]);
+        cursor = cursor->ptr[cursor->size];
+    }
+    if (all_keys.size() != key_num)
+    {
+        cout << "check(): key_num err!! " << all_keys.size() << " != " << key_num << ".\n";
+        exit(EXIT_FAILURE);
+    }
+    while (!all_keys.empty())
+    {
+        if (!search(all_keys.front()))
+        {
+            cout << "check(): key \"" << all_keys.front() << "\" not found!!\n";
+            exit(EXIT_FAILURE);
+        }
+        all_keys.pop();
+    }
+}
+
+void BPTree::check_tot(int64_t arr_sort[], int64_t n)
+{
+    if (root == NULL)
+    {
+        cout << "empty tree." << endl;
+    }
+    // Traverse the B+ Tree
+    else
+    {
+        Node *cursor = root;
+        // Till cursor reaches the leaf node
+        while (!cursor->IS_LEAF)
+            cursor = cursor->ptr[0];
+        // Visit leaf node
+        int64_t j = 0;
+        while (cursor)
+        {
+            for (int i = 0; i < cursor->size; ++i, ++j)
+            {
+                if (cursor->key[i] != arr_sort[j])
+                {
+                    cout << "check(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
+                    return;
+                }
+            }
+            cursor = cursor->ptr[cursor->size];
+        }
+        cout << "check(): OK.\n";
     }
 }

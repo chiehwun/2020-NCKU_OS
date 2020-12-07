@@ -4,7 +4,7 @@ gen.out: gen.cpp
 	g++ -o gen.out gen.cpp
 
 db.o: db.cpp db.h
-	g++ -c db.cpp -gxt_sort
+	g++ -c db.cpp -g
 
 BPTree.o: BPTree.cpp BPTree.h
 	g++ -c BPTree.cpp -g
