@@ -1,6 +1,10 @@
 # all
 *.tmp
 
+# hw0_technique
+hw0_technique/Memory_map_files/*.input
+hw0_technique/Memory_map_files/*.txt
+
 # hw1_Benchmark
 hw1_Benchmark/test_files/*.txt
 hw1_Benchmark/test_files/run/*.run
@@ -11,6 +15,9 @@ hw2_ETL_process/*.csv
 hw2_ETL_process/*.txt
 hw2_ETL_process/*.thdout
 hw2_ETL_process/*.log
+
+# hw3_database
+hw3_database/hw3_testdata/*
 
 ### C++ ###
 # Prerequisites
