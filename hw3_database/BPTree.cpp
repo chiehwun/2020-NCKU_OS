@@ -320,7 +320,7 @@ void BPTree::insertInternal(int64_t x,
         {
             cout << "case (F): call insertInternal()" << endl;
             // Recursive Call to insert the data
-            insertInternal(cursor->key[cursor->size],
+            insertInternal(virtualKey[cursor->size],
                            findParent(root, cursor),
                            newInternal);
         }
@@ -335,38 +335,27 @@ Node *BPTree::findParent(Node *cursor,
 
     // If cursor reaches the end of Tree
     if (cursor->IS_LEAF || (cursor->ptr[0])->IS_LEAF)
-    {
         return NULL;
-    }
 
-    // Traverse the current node with
-    // all its child
-    for (int i = 0;
-         i < cursor->size + 1; i++)
+    // Traverse the current node with all its child
+    for (int i = 0; i < cursor->size + 1; i++)
     {
-
-        // Update the parent for the
-        // child Node
+        // Update the parent for the child Node
         if (cursor->ptr[i] == child)
         {
             parent = cursor;
             return parent;
         }
-
-        // Else recursively traverse to
-        // find child node
+        // Else recursively traverse to find child node
         else
         {
-            parent = findParent(cursor->ptr[i],
-                                child);
-
+            parent = findParent(cursor->ptr[i], child);
             // If parent is found, then
             // return that parent node
             if (parent != NULL)
                 return parent;
         }
     }
-
     // Return parent node
     return parent;
 }
@@ -491,9 +480,7 @@ void BPTree::check(int64_t key_num)
 void BPTree::check_tot(int64_t arr_sort[], int64_t n)
 {
     if (root == NULL)
-    {
-        cout << "empty tree." << endl;
-    }
+        cout << "check_tot(): empty tree.\n";
     // Traverse the B+ Tree
     else
     {
@@ -509,12 +496,12 @@ void BPTree::check_tot(int64_t arr_sort[], int64_t n)
             {
                 if (cursor->key[i] != arr_sort[j])
                 {
-                    cout << "check(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
+                    cout << "check_tot(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
                     return;
                 }
             }
             cursor = cursor->ptr[cursor->size];
         }
-        cout << "check(): OK.\n";
+        cout << "check_tot(): OK.\n";
     }
 }

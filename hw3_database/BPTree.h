@@ -7,7 +7,8 @@
 #include <sstream>
 #include <string>
 #include <queue>
-#define MAX (5) // key number
+#include <stack>
+#define MAX (3) // key number
 using namespace std;
 
 // BP node

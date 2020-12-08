@@ -18,6 +18,7 @@ hw2_ETL_process/*.log
 
 # hw3_database
 hw3_database/hw3_testdata/*
+# hw3_database/.log
 
 ### C++ ###
 # Prerequisites
