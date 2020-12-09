@@ -1,5 +1,6 @@
 #ifndef BPTREE
 #define BPTREE
+
 #include <climits>
 #include <fstream>
 #include <iostream>
@@ -8,7 +9,7 @@
 #include <string>
 #include <queue>
 #include <stack>
-#define MAX (3) // key number
+#include <sstream>
 using namespace std;
 
 // BP node
@@ -23,7 +24,7 @@ public:
     friend class BPTree;
 
 public:
-    Node();
+    Node(int m);
 };
 
 // BP tree
@@ -31,24 +32,37 @@ class BPTree
 {
 private:
     void insertInternal(int64_t x,
-                        Node *cursor,
-                        Node *child);
+                        stack<Node *> &parent_stack,
+                        Node *child,
+                        ostream &cso);
     Node *findParent(Node *cursor,
                      Node *child);
-    void visualize(Node *root, int width, int lay);
+    void visualize(Node *root,
+                   int width,
+                   int lay,
+                   ostream &cso);
+
+    bool locate(const int64_t x,
+                const int64_t *arr,
+                const int n,
+                int &pos);
 
 public:
     Node *root;
-    BPTree();
+    const int MAX;
+    BPTree(int m);
     bool search(int64_t x);
-    void insert(int64_t x, string y);
-    void display(Node *cursor);
+    void insert(int64_t x, string y,
+                ostream &cso);
     Node *getRoot();
-    void display_leaf();
-    void visualize(int width);
+    void visualize(int width,
+                   ostream &cso);
     string str_repeat(int n, const string str);
-    void check(int64_t key_num);
-    void check_tot(int64_t arr_sort[], int64_t n);
+    bool check(int64_t key_num,
+               ostream &cso);
+    bool check_tot(int64_t arr_sort[],
+                   int64_t n,
+                   ostream &cso);
 };
 // cout << "├── \n│├──\n└─\n\n";
 #endif // BPTREE
