@@ -9,18 +9,16 @@
 #include "BPTree.h"
 #include "progress_bar.h"
 #define RAND_TEST true
-#define RAND_TEST_NUM 10000
+#define RAND_TEST_NUM 100
 #define DB_OUT 1 // 0: print all, 1: print wrong
 using namespace std;
 
 int main(int argc, char *argv[])
 {
-    BPTree test_treeF(10);
-    int64_t arr_record[] = {30, 39, 8, 26, 36, 28, 6, 7, 41, 9,
-                            35, 4, 38, 15, 14, 17, 5, 32, 46, 42,
-                            37, 43, 22, 33, 49, 3, 23, 40, 10, 31,
-                            1, 34, 19, 21, 12, 44, 11, 13, 24, 20,
-                            27, 0, 16, 45, 29, 47, 18, 2, 48, 25};
+    BPTree test_treeF(3);
+    int64_t arr_record[] = {1, 2, 3, 4, 5,
+                            6, 7, 8, 9, 10,
+                            11, 12, 13, 14, 15};
 
     int64_t n = RAND_TEST ? RAND_TEST_NUM : sizeof(arr_record) / sizeof(*arr_record);
     int64_t arr_rand[n]{}, arr_sort[n]{};
@@ -75,6 +73,7 @@ int main(int argc, char *argv[])
             cso << "\ninsert arr[" << i << "]: " << key << "\n";
             test_treeF.insert(key, "a", cso); // print case(?...)
             test_treeF.visualize(3, cso);
+            cso << "tree.nodeNum: " << test_treeF.nodeNum << endl;
             bool err = !test_treeF.check(j == 0 ? i + 1 : n, cso);
             if (DB_OUT == 1)
             {
@@ -91,8 +90,8 @@ int main(int argc, char *argv[])
             progress_bar(j * n + (i + 1), n * 2);
         }
     }
-    test_treeF.check_tot(arr_sort, n, cout);
-
+    test_treeF.visualize(3, cout);
+    test_treeF.check_leaf(arr_sort, n, cout);
     return 0;
 }
 // sort(arr_record, arr_record + 50);

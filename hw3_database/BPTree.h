@@ -11,20 +11,31 @@
 #include <stack>
 #include <sstream>
 using namespace std;
+typedef struct Data
+{
+    int64_t key;
+    char str[128];
+} Data;
 
 // BP node
 class Node
 {
 public:
+    Data *datum;
     int64_t *key;
     string *str;
     int size; // key number
     Node **ptr;
     bool IS_LEAF;
+    const int MAX_SIZE;
     friend class BPTree;
 
 public:
-    Node(int m);
+    Node(int m, bool isleaf = true);
+    ~Node();
+    int64_t leastRSub(int ptr);
+    void set_size_full();
+    void display();
 };
 
 // BP tree
@@ -50,19 +61,26 @@ private:
 public:
     Node *root;
     const int MAX;
+    const int HALF;
+    const int MIN;
+    int64_t nodeNum;
     BPTree(int m);
+    ~BPTree();
+    void bulk_load(int64_t num);
+    void del_tree(Node *cursor);
     bool search(int64_t x);
     void insert(int64_t x, string y,
                 ostream &cso);
+    void del(int64_t x, ostream &cso);
     Node *getRoot();
     void visualize(int width,
                    ostream &cso);
     string str_repeat(int n, const string str);
     bool check(int64_t key_num,
                ostream &cso);
-    bool check_tot(int64_t arr_sort[],
-                   int64_t n,
-                   ostream &cso);
+    bool check_leaf(int64_t arr_sort[],
+                    int64_t n,
+                    ostream &cso);
 };
 // cout << "├── \n│├──\n└─\n\n";
 #endif // BPTREE

@@ -7,15 +7,10 @@
 #include <libgen.h> // dirname
 #include <unistd.h> // readlink
 #include <climits>
-#include <cctype>  // for read_arg()
 #include <clocale> // Print integer with thousands and millions separator
 
 using namespace std;
-extern char *optarg;
-extern int optind, opterr, optopt;
-int getopt(int argc, char const *argv[], const char *optstring);
 long getMemInfo(int mode = 0, bool show = false); // mode: [0,free][1,tot]
-string getpath();
 
 // Parameters Modify
 #define MEM_SF 0.8                     // memory safety factor 0.8

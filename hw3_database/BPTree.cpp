@@ -1,18 +1,155 @@
 #include "BPTree.h"
-// Constructor of Node
-Node::Node(int m)
+// Constructor of Node(MAX, ISLEAF = true)
+Node::Node(int m, bool isleaf) : MAX_SIZE(m)
 {
-    key = new int64_t[m]();
-    str = new string[m]();
     size = 0;
-    ptr = new Node *[m + 1]();
-    IS_LEAF = false;
+    IS_LEAF = isleaf;
+    // Dynamic allocation
+    datum = new Data[MAX_SIZE]();
+    key = new int64_t[MAX_SIZE]();
+    str = new string[MAX_SIZE]();
+    ptr = new Node *[MAX_SIZE + 1]();
+}
+
+Node::~Node()
+{
+    delete[] datum;
+    delete[] ptr;
+    // 88 soon
+    delete[] key;
+    delete[] str;
+    // cout << "~Node(): " << hex << this << dec << endl;
+}
+
+// Remind ptrR > size
+int64_t Node::leastRSub(int ptrR)
+{
+    if (!this || !this->ptr[ptrR] || ptrR > size)
+    {
+        cout << "Node::leastRSub(): err!\n";
+        exit(EXIT_FAILURE);
+    }
+    Node *cursor = this->ptr[ptrR];
+    // Reach leaf node
+    while (!cursor->IS_LEAF)
+        cursor = cursor->ptr[0];
+    return cursor->key[0];
+}
+
+void Node::set_size_full()
+{
+    size = MAX_SIZE;
+}
+
+void Node::display()
+{
+    cout.imbue(std::locale("C"));
+    cout << left << setw(15) << "Node address:" << hex << this << dec << endl;
+    cout << left << setw(15) << "MAX_SIZE: " << MAX_SIZE << endl;
+    cout << left << setw(15) << "size: " << size << endl;
+    cout << left << setw(15) << "IS_LEAF: " << boolalpha << IS_LEAF << endl;
+    for (int i = 0; i < size; ++i)
+    {
+        cout << "datum[" << right << setw(3) << i << "]:"
+             << right << setw(25) << datum[i].key << ","
+             << left << datum[i].str
+             << endl;
+    }
 }
 
 // Initialize the BPTree Node
-BPTree::BPTree(int m) : MAX(m)
+BPTree::BPTree(int m) : MAX(m),
+                        HALF((m + 1) / 2),
+                        MIN(m / 2)
 {
     root = NULL;
+    nodeNum = 0;
+}
+
+BPTree::~BPTree()
+{
+    cout.imbue(std::locale("C"));
+    cout << hex << "****** ~BPTree(): " << this << dec << " ******\n";
+    del_tree(root);
+    if (nodeNum == 0)
+        cout << "~BPTree(): delete OK.\n";
+    else
+    {
+        cout << "~BPTree(): nodeNum != 0 !!\n";
+        exit(EXIT_FAILURE);
+    }
+}
+
+void BPTree::bulk_load(int64_t num)
+{
+    if (root)
+        return;
+    queue<Node *> qu, qu_parent;
+    int64_t i = 0;
+    while (i < num)
+    {
+        Node *leaf = new Node(MAX, true);
+        // Link leaf node
+        if (!qu.empty())
+            qu.back()->ptr[qu.back()->size] = leaf;
+        // Fill leaf.key with HALF size
+        for (int j = 0; j < HALF && i < num; ++j)
+        {
+            leaf->key[j] = i + 1;
+            leaf->size++;
+            ++i;
+        }
+        qu.push(leaf);
+    }
+    nodeNum = qu.size();
+    cout << "HALF: " << HALF << endl;
+    cout << "nodeNum: " << nodeNum << endl;
+    while (qu.size() > 1)
+    {
+        while (!qu.empty())
+        {
+            Node *nonleaf = new Node(MAX, false);
+            ++nodeNum;
+            for (int i = 0; i < HALF + 1 && !qu.empty(); ++i)
+            {
+                nonleaf->ptr[i] = qu.front();
+                if (i > 0)
+                {
+                    ++nonleaf->size;
+                    nonleaf->key[i - 1] = nonleaf->leastRSub(i);
+                }
+                qu.pop(); // after linking
+            }
+            if (qu.size() == 1)
+            {
+                cout << "qu.size = 1" << endl;
+                ++nonleaf->size;
+                nonleaf->ptr[nonleaf->size] = qu.front();
+                nonleaf->key[nonleaf->size - 1] =
+                    nonleaf->leastRSub(nonleaf->size);
+                qu.pop(); // after linking
+            }
+            qu_parent.push(nonleaf);
+        }
+        qu.swap(qu_parent);
+    }
+    root = qu.front();
+    visualize(3, cout);
+    check(num, cout);
+}
+
+void BPTree::del_tree(Node *cursor)
+{
+    // LRV traverse
+    if (!cursor)
+        return;
+    // leaf node needless to delete last link
+    int n = cursor->IS_LEAF ? cursor->size : cursor->size + 1;
+    for (int i = 0; i < n; ++i)
+        del_tree(cursor->ptr[i]);
+    --nodeNum;
+    delete cursor;
+    // cout << "BPtree::nodeNum = " << nodeNum << "\n\n";
 }
 
 // return true if repeat key exists.
@@ -91,6 +228,7 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
     {
         cso << "case (A)" << endl;
         root = new Node(MAX);
+        ++nodeNum;
         root->key[0] = x;
         root->str[0] = y;
         root->IS_LEAF = true;
@@ -149,9 +287,6 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
         // leaf node Overflow
         else
         {
-
-            // Create a newLeaf node
-            Node *newLeaf = new Node(MAX);
             int virtualNode[MAX + 1] = {0};
             // Copy overflowed key to virtualNode
             for (int i = 0; i < MAX; i++)
@@ -170,6 +305,9 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
             for (int j = MAX; j > pos_leaf; j--)
                 virtualNode[j] = virtualNode[j - 1];
             virtualNode[pos_leaf] = x;
+            // Create a newLeaf node
+            Node *newLeaf = new Node(MAX);
+            ++nodeNum;
             newLeaf->IS_LEAF = true;
             // Update size
             cursor->size = (MAX + 1) / 2;
@@ -194,7 +332,7 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
                 cso << "case (C)" << endl;
                 // Create a new Node
                 Node *newRoot = new Node(MAX);
-
+                ++nodeNum;
                 // Update rest field of
                 // B+ Tree Node
                 newRoot->key[0] = newLeaf->key[0];
@@ -257,6 +395,7 @@ void BPTree::insertInternal(int64_t x,
     {
         // For new Interval
         Node *newInternal = new Node(MAX);
+        ++nodeNum;
         int virtualKey[MAX + 1];
         Node *virtualPtr[MAX + 2];
 
@@ -315,7 +454,7 @@ void BPTree::insertInternal(int64_t x,
             cso << "case (E): call insertInternal()" << endl;
             // Create a new root node
             Node *newRoot = new Node(MAX);
-
+            ++nodeNum;
             // Update key value
             newRoot->key[0] = virtualKey[cursor->size];
 
@@ -369,6 +508,10 @@ Node *BPTree::findParent(Node *cursor,
     }
     // Return parent node
     return parent;
+}
+
+void BPTree::del(int64_t x, ostream &cso)
+{
 }
 
 // Function to get the root Node
@@ -429,12 +572,14 @@ bool BPTree::check(int64_t key_num, ostream &cso)
     while (cursor)
     {
         for (int i = 0; i < cursor->size; ++i)
+        {
             all_keys.push(cursor->key[i]);
+        }
         cursor = cursor->ptr[cursor->size];
     }
     if (all_keys.size() != key_num)
     {
-        cso << "check(): key_num err!! " << all_keys.size() << " != " << key_num << ".\n";
+        cso << "check(): key_num err!! " << all_keys.size() << "(real) != " << key_num << "(given).\n";
         return false;
     }
     while (!all_keys.empty())
@@ -449,11 +594,11 @@ bool BPTree::check(int64_t key_num, ostream &cso)
     return true;
 }
 
-bool BPTree::check_tot(int64_t arr_sort[], int64_t n, ostream &cso)
+bool BPTree::check_leaf(int64_t arr_sort[], int64_t n, ostream &cso)
 {
     if (root == NULL)
     {
-        cso << "check_tot(): empty tree.\n";
+        cso << "check_leaf(): empty tree.\n";
         return false;
     }
     // Traverse the B+ Tree
@@ -469,12 +614,12 @@ bool BPTree::check_tot(int64_t arr_sort[], int64_t n, ostream &cso)
         {
             if (cursor->key[i] != arr_sort[j])
             {
-                cso << "check_tot(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
+                cso << "check_leaf(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
                 return false;
             }
         }
         cursor = cursor->ptr[cursor->size];
     }
-    cso << "check_tot(): OK.\n";
+    cso << "check_leaf(): OK.\n";
     return true;
 }
