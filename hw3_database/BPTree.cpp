@@ -6,18 +6,14 @@ Node::Node(int m, bool isleaf) : MAX_SIZE(m)
     IS_LEAF = isleaf;
     // Dynamic allocation
     datum = new Data[MAX_SIZE]();
-    key = new int64_t[MAX_SIZE]();
-    str = new string[MAX_SIZE]();
     ptr = new Node *[MAX_SIZE + 1]();
 }
 
 Node::~Node()
 {
+    // Dynamic allocation
     delete[] datum;
     delete[] ptr;
-    // 88 soon
-    delete[] key;
-    delete[] str;
     // cout << "~Node(): " << hex << this << dec << endl;
 }
 
@@ -33,10 +29,10 @@ int64_t Node::leastRSub(int ptrR)
     // Reach leaf node
     while (!cursor->IS_LEAF)
         cursor = cursor->ptr[0];
-    return cursor->key[0];
+    return cursor->datum[0].key;
 }
 
-void Node::set_size_full()
+void Node::set_sizeMAX()
 {
     size = MAX_SIZE;
 }
@@ -44,16 +40,19 @@ void Node::set_size_full()
 void Node::display()
 {
     cout.imbue(std::locale("C"));
+    cout << "========== Node::display() ==========\n";
     cout << left << setw(15) << "Node address:" << hex << this << dec << endl;
     cout << left << setw(15) << "MAX_SIZE: " << MAX_SIZE << endl;
     cout << left << setw(15) << "size: " << size << endl;
     cout << left << setw(15) << "IS_LEAF: " << boolalpha << IS_LEAF << endl;
     for (int i = 0; i < size; ++i)
     {
-        cout << "datum[" << right << setw(3) << i << "]:"
-             << right << setw(25) << datum[i].key << ","
-             << left << datum[i].str
-             << endl;
+        cout << "datum[" << right << setw(3) << i << "]"
+             << "(" << setw(3) << NNTC_SIZE(datum[i].str) << "):"
+             << right << setw(25) << datum[i].key << ",";
+        cout.write(datum[i].str,
+                   NNTC_SIZE(datum[i].str));
+        cout << endl;
     }
 }
 
@@ -95,7 +94,7 @@ void BPTree::bulk_load(int64_t num)
         // Fill leaf.key with HALF size
         for (int j = 0; j < HALF && i < num; ++j)
         {
-            leaf->key[j] = i + 1;
+            leaf->datum[j].key = i + 1;
             leaf->size++;
             ++i;
         }
@@ -116,7 +115,7 @@ void BPTree::bulk_load(int64_t num)
                 if (i > 0)
                 {
                     ++nonleaf->size;
-                    nonleaf->key[i - 1] = nonleaf->leastRSub(i);
+                    nonleaf->datum[i - 1].key = nonleaf->leastRSub(i);
                 }
                 qu.pop(); // after linking
             }
@@ -125,7 +124,7 @@ void BPTree::bulk_load(int64_t num)
                 cout << "qu.size = 1" << endl;
                 ++nonleaf->size;
                 nonleaf->ptr[nonleaf->size] = qu.front();
-                nonleaf->key[nonleaf->size - 1] =
+                nonleaf->datum[nonleaf->size - 1].key =
                     nonleaf->leastRSub(nonleaf->size);
                 qu.pop(); // after linking
             }
@@ -156,15 +155,22 @@ void BPTree::del_tree(Node *cursor)
 // Traverse and overwrite &pos where
 // arr[n] < key, n < pos; key <= arr[n], n >= pos
 bool BPTree::locate(const int64_t x,
-                    const int64_t *arr,
-                    const int n,
+                    const Data *datum,
+                    const int n, // size
                     int &pos)
 {
+    // 1. pos <= n
+    // 2. input datum[n] may overflow,
+    //    means datum's size > n
     pos = 0;
     // TODO: CHANGE TO BINARY SEARCH
-    while (x > arr[pos] && pos < n)
+    while (x > datum[pos].key && pos < n)
         pos++;
-    return x == arr[pos];
+    if (pos == n)
+        // datum[n].key is "garbage value"
+        return false;
+    else
+        return x == datum[pos].key;
 }
 
 // Function to find any element in B+ Tree
@@ -184,7 +190,7 @@ bool BPTree::search(int64_t x)
             {
                 // If the element to be
                 // found is not present
-                if (x < cursor->key[i])
+                if (x < cursor->datum[i].key)
                 {
                     cursor = cursor->ptr[i];
                     break;
@@ -199,21 +205,18 @@ bool BPTree::search(int64_t x)
                 }
             }
         }
-
-        // Traverse the cursor and find
-        // the node with value x
+        cout << "search(" << x << "):";
         for (int i = 0; i < cursor->size; i++)
         {
-            // If found then return
-            if (cursor->key[i] == x)
+            if (cursor->datum[i].key == x)
             {
-                // cout << "Found\n";
+                SHOW_NNTC(cout, cursor->datum[i].str);
+                cout << "\n\n";
+                cursor->display();
                 return true;
             }
         }
-
-        // Else element is not present
-        // cout << "Not found\n";
+        cout << " Not found.\n";
     }
     return false;
 }
@@ -229,8 +232,8 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
         cso << "case (A)" << endl;
         root = new Node(MAX);
         ++nodeNum;
-        root->key[0] = x;
-        root->str[0] = y;
+        root->datum[0].key = x;
+        strncpy(root->datum[0].str, y.c_str(), sizeof(Data::str));
         root->IS_LEAF = true;
         root->size = 1;
     }
@@ -247,14 +250,13 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
             {
                 // If found the position
                 // where we have to insert node
-                if (x < cursor->key[i])
+                if (x < cursor->datum[i].key)
                 {
                     cursor = cursor->ptr[i];
                     break;
                 }
 
                 // If reaches the end
-                // && x >= cursor->key[i]
                 if (i == cursor->size - 1)
                 {
                     cursor = cursor->ptr[i + 1];
@@ -265,53 +267,58 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
         if (cursor->size < MAX)
         {
             int pos_leaf = 0; // pass by reference
-            if (locate(x, cursor->key, cursor->size, pos_leaf))
+            if (locate(x, cursor->datum, cursor->size, pos_leaf))
             {
                 cso << "case (R0): repeat key = " << x << endl;
-                cursor->str[pos_leaf] = y;
+                strncpy(cursor->datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
                 return;
             }
 
             cso << "case (B): leaf node non-ovf." << endl;
             // right shift after pos_leaf
             for (int j = cursor->size; j > pos_leaf; j--)
-                cursor->key[j] = cursor->key[j - 1];
-
+            {
+                memcpy(cursor->datum + j, cursor->datum + j - 1, sizeof(Data));
+                // cursor->datum[j].key = cursor->datum[j - 1].key;
+                // strncpy(cursor->datum[j].str, cursor->datum[j - 1].str, sizeof(Data::str));
+            }
             // Update last ptr (link to next leaf node)
             cursor->size++;
             cursor->ptr[cursor->size] = cursor->ptr[cursor->size - 1];
             cursor->ptr[cursor->size - 1] = NULL;
-            cursor->key[pos_leaf] = x;
-            cursor->str[pos_leaf] = y;
+            cursor->datum[pos_leaf].key = x;
+            strncpy(cursor->datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
         }
         // leaf node Overflow
         else
         {
-            int virtualNode[MAX + 1] = {0};
+            Node virtualNode(MAX + 1);
+            // int virtualNode[MAX + 1] = {0};
             // Copy overflowed key to virtualNode
             for (int i = 0; i < MAX; i++)
-                virtualNode[i] = cursor->key[i];
+                virtualNode.datum[i] = cursor->datum[i];
 
             int pos_leaf = 0; // pass by reference
-            if (locate(x, cursor->key, MAX, pos_leaf))
+            if (locate(x, virtualNode.datum, MAX, pos_leaf))
             {
                 cso << "case (R1): repeat key = " << x << endl;
-                cursor->str[pos_leaf] = y;
+                strncpy(cursor->datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
                 return;
             }
 
-            // Right shift + insert virtualNode
+            // Right shift
             // (MAX + 1)->(MAX)??
             for (int j = MAX; j > pos_leaf; j--)
-                virtualNode[j] = virtualNode[j - 1];
-            virtualNode[pos_leaf] = x;
+                virtualNode.datum[j] = virtualNode.datum[j - 1];
+            // Insert new data
+            strncpy(virtualNode.datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
+            virtualNode.datum[pos_leaf].key = x;
             // Create a newLeaf node
-            Node *newLeaf = new Node(MAX);
+            Node *newLeaf = new Node(MAX, true);
             ++nodeNum;
-            newLeaf->IS_LEAF = true;
             // Update size
-            cursor->size = (MAX + 1) / 2;
-            newLeaf->size = MAX + 1 - cursor->size;
+            cursor->size = HALF;
+            newLeaf->size = MAX + 1 - HALF;
             // Update last link
             cursor->ptr[cursor->size] = newLeaf;
             newLeaf->ptr[newLeaf->size] = cursor->ptr[MAX];
@@ -320,25 +327,25 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
             // Overwrite the key of cursor node
             int i = 0, j = 0;
             for (i = 0; i < cursor->size; i++)
-                cursor->key[i] = virtualNode[i];
+                cursor->datum[i] = virtualNode.datum[i];
             // Write the newLeaf key
             for (i = 0, j = cursor->size;
                  i < newLeaf->size; i++, j++)
-                newLeaf->key[i] = virtualNode[j];
+                newLeaf->datum[i] = virtualNode.datum[j];
 
             // If cursor is the root node
             if (cursor == root)
             {
                 cso << "case (C)" << endl;
                 // Create a new Node
-                Node *newRoot = new Node(MAX);
+                Node *newRoot = new Node(MAX, false);
                 ++nodeNum;
                 // Update rest field of
                 // B+ Tree Node
-                newRoot->key[0] = newLeaf->key[0];
+                newRoot->datum[0].key = newLeaf->datum[0].key;
+                strncpy(newRoot->datum[0].str, newLeaf->datum[0].str, sizeof(Data::str));
                 newRoot->ptr[0] = cursor;
                 newRoot->ptr[1] = newLeaf;
-                newRoot->IS_LEAF = false;
                 newRoot->size = 1;
                 root = newRoot;
             }
@@ -347,7 +354,7 @@ void BPTree::insert(int64_t x, string y, ostream &cso)
             {
                 // Recursive Call for
                 // insert in internal
-                insertInternal(newLeaf->key[0],
+                insertInternal(newLeaf->datum[0].key,
                                parent_stack,
                                newLeaf,
                                cso);
@@ -372,21 +379,16 @@ void BPTree::insertInternal(int64_t x,
         // Traverse the child node
         // for current cursor node
         int pos = 0; // pass by reference
-        locate(x, cursor->key, cursor->size, pos);
+        locate(x, cursor->datum, cursor->size, pos);
 
-        // Traverse the cursor node
-        // and update the current key
-        // to its previous node key
+        // Right shift parent data
         for (int j = cursor->size; j > pos; j--)
-            cursor->key[j] = cursor->key[j - 1];
-
-        // Traverse the cursor node
-        // and update the current ptr
-        // to its previous node ptr
+            cursor->datum[j] = cursor->datum[j - 1];
+        // Right shift parent ptr
         for (int j = cursor->size + 1; j > pos + 1; j--)
             cursor->ptr[j] = cursor->ptr[j - 1];
-
-        cursor->key[pos] = x;
+        // Only key need to be copied
+        cursor->datum[pos].key = x;
         cursor->size++;
         cursor->ptr[pos + 1] = child;
     }
@@ -399,12 +401,10 @@ void BPTree::insertInternal(int64_t x,
         int virtualKey[MAX + 1];
         Node *virtualPtr[MAX + 2];
 
-        // Insert the current list key
-        // of cursor node to virtualKey
+        // Copy key
         for (int i = 0; i < MAX; i++)
-            virtualKey[i] = cursor->key[i];
-        // Insert the current list ptr
-        // of cursor node to virtualPtr
+            virtualKey[i] = cursor->datum[i].key;
+        // Copy ptr
         for (int i = 0; i < MAX + 1; i++)
             virtualPtr[i] = cursor->ptr[i];
         // Traverse to find where the new
@@ -436,14 +436,14 @@ void BPTree::insertInternal(int64_t x,
         // Update cursor node key
         int i = 0, j = 0;
         for (i = pos, j = pos; i < cursor->size; ++i, ++j)
-            cursor->key[i] = virtualKey[j];
+            cursor->datum[i].key = virtualKey[j];
         for (i = pos + 1, j = pos + 1; i < cursor->size + 1; ++i, ++j)
             cursor->ptr[i] = virtualPtr[j];
 
         // Insert newInternal as an internal node
         for (i = 0, j = cursor->size + 1;
              i < newInternal->size; i++, j++)
-            newInternal->key[i] = virtualKey[j];
+            newInternal->datum[i].key = virtualKey[j];
         for (i = 0, j = cursor->size + 1;
              i < newInternal->size + 1; i++, j++)
             newInternal->ptr[i] = virtualPtr[j];
@@ -456,7 +456,7 @@ void BPTree::insertInternal(int64_t x,
             Node *newRoot = new Node(MAX);
             ++nodeNum;
             // Update key value
-            newRoot->key[0] = virtualKey[cursor->size];
+            newRoot->datum[0].key = virtualKey[cursor->size];
 
             // Update rest field of
             // B+ Tree Node
@@ -520,12 +520,12 @@ Node *BPTree::getRoot()
     return root;
 }
 
-void BPTree::visualize(int width, ostream &cso)
+void BPTree::visualize(int width, ostream &cso, bool show_str)
 {
-    visualize(root, width, 0, cso);
+    visualize(root, width, 0, cso, show_str);
 }
 
-void BPTree::visualize(Node *root, int width, int lay, ostream &cso)
+void BPTree::visualize(Node *root, int width, int lay, ostream &cso, bool show_str)
 {
     if (!root)
         return;
@@ -540,10 +540,17 @@ void BPTree::visualize(Node *root, int width, int lay, ostream &cso)
                 cso << (islast ? "└" : "├"); // last key
                 cso << str_repeat(width, "─");
             }
-            cso << setprecision(width)
-                << (i == root->size ? "X" : to_string(root->key[i]))
-                << endl;
-            visualize(root->ptr[i], width, lay + 1, cso);
+            if (i == root->size)
+                cso << setprecision(width) << "X" << endl;
+            else
+            {
+                if (show_str)
+                    cso << setprecision(width)
+                        << to_string(root->datum[i].key) + ":" + NNTC_to_string(root->datum[i].str) << endl;
+                else
+                    cso << setprecision(width) << root->datum[i].key << endl;
+            }
+            visualize(root->ptr[i], width, lay + 1, cso, show_str);
         }
     }
 }
@@ -573,7 +580,7 @@ bool BPTree::check(int64_t key_num, ostream &cso)
     {
         for (int i = 0; i < cursor->size; ++i)
         {
-            all_keys.push(cursor->key[i]);
+            all_keys.push(cursor->datum[i].key);
         }
         cursor = cursor->ptr[cursor->size];
     }
@@ -612,9 +619,19 @@ bool BPTree::check_leaf(int64_t arr_sort[], int64_t n, ostream &cso)
     {
         for (int i = 0; i < cursor->size; ++i, ++j)
         {
-            if (cursor->key[i] != arr_sort[j])
+            if (cursor->datum[i].key != arr_sort[j])
             {
-                cso << "check_leaf(): " << cursor->key[i] << " != " << arr_sort[j] << "!\n";
+                cso << "check_leaf(): "
+                    << cursor->datum[i].key
+                    << " != " << arr_sort[j] << "!\n";
+                return false;
+            }
+            // Check string data correction @@
+            if (atol(cursor->datum[i].str) != arr_sort[j])
+            {
+                cso << "check_leaf(): "
+                    << cursor->datum[i].str
+                    << " != " << arr_sort[j] << "!\n";
                 return false;
             }
         }

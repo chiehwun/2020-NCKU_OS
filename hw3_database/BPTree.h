@@ -10,7 +10,14 @@
 #include <queue>
 #include <stack>
 #include <sstream>
+#include <cstring> // memcpy()
+#define _MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define NNTC_SIZE(a) _MIN(sizeof(Data::str), std::strlen(a))
+#define SHOW_NNTC(a, b) (a).write(b, NNTC_SIZE(b))
+#define NNTC_to_string(a) string(a, NNTC_SIZE(a))
+
 using namespace std;
+// POD structlog_prev
 typedef struct Data
 {
     int64_t key;
@@ -22,8 +29,8 @@ class Node
 {
 public:
     Data *datum;
-    int64_t *key;
-    string *str;
+    // int64_t *key;
+    // string *str;
     int size; // key number
     Node **ptr;
     bool IS_LEAF;
@@ -34,7 +41,7 @@ public:
     Node(int m, bool isleaf = true);
     ~Node();
     int64_t leastRSub(int ptr);
-    void set_size_full();
+    void set_sizeMAX();
     void display();
 };
 
@@ -51,10 +58,11 @@ private:
     void visualize(Node *root,
                    int width,
                    int lay,
-                   ostream &cso);
+                   ostream &cso,
+                   bool show_str);
 
     bool locate(const int64_t x,
-                const int64_t *arr,
+                const Data *datum,
                 const int n,
                 int &pos);
 
@@ -74,7 +82,8 @@ public:
     void del(int64_t x, ostream &cso);
     Node *getRoot();
     void visualize(int width,
-                   ostream &cso);
+                   ostream &cso,
+                   bool show_str = false);
     string str_repeat(int n, const string str);
     bool check(int64_t key_num,
                ostream &cso);
