@@ -79,7 +79,7 @@ int main()
 // for (int64_t i = 0; i < n; ++i)
 //     arr_sort[i] = i + 1;
 // BPTree tree(10);
-// tree.bulk_load(n);
+// tree.bulk_load_test(n);
 // tree.check_leaf(arr_sort, n, cout);
 
 /******************** Node deletion test ********************/

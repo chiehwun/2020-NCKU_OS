@@ -1,5 +1,5 @@
-#ifndef BPTREE
-#define BPTREE
+#ifndef BPTREE_H
+#define BPTREE_H
 
 #include <climits>
 #include <fstream>
@@ -17,7 +17,8 @@
 #define NNTC_to_string(a) string(a, NNTC_SIZE(a))
 
 using namespace std;
-// POD structlog_prev
+
+// POD struct
 typedef struct Data
 {
     int64_t key;
@@ -49,6 +50,10 @@ public:
 class BPTree
 {
 private:
+    bool locate(const int64_t x,
+                const Data *datum,
+                const int n,
+                int &pos);
     void insertInternal(int64_t x,
                         stack<Node *> &parent_stack,
                         Node *child,
@@ -61,24 +66,28 @@ private:
                    ostream &cso,
                    bool show_str);
 
-    bool locate(const int64_t x,
-                const Data *datum,
-                const int n,
-                int &pos);
-
 public:
+    static const string jojo;
     Node *root;
     const int MAX;
     const int HALF;
     const int MIN;
-    int64_t nodeNum;
-    BPTree(int m);
+    const int64_t NODE_MAX_NUM;
+    // tree status
+    int64_t NodeNum;
+    int64_t leafNodeNum;
+    int64_t min_key;
+    int64_t max_key;
+    BPTree(int m, int n);
     ~BPTree();
-    void bulk_load(int64_t num);
-    void del_tree(Node *cursor);
-    bool search(int64_t x);
-    void insert(int64_t x, string y,
-                ostream &cso);
+    void reset_tree();
+    void del_tree(Node *cursor, bool del_leaf = true);
+    void bulk_load_parents(queue<Node *> &qu);
+    void bulk_load_test(int64_t num);
+    bool search(int64_t x, bool show = true);
+    bool insert(int64_t x, string y,
+                ostream &cso); // return overflow?
+    void update_mkey();
     void del(int64_t x, ostream &cso);
     Node *getRoot();
     void visualize(int width,
@@ -91,5 +100,4 @@ public:
                     int64_t n,
                     ostream &cso);
 };
-// cout << "├── \n│├──\n└─\n\n";
-#endif // BPTREE
+#endif // BPTREE_H
