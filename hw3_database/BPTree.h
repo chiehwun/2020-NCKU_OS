@@ -15,8 +15,9 @@
 #define NNTC_SIZE(a) _MIN(sizeof(Data::str), std::strlen(a))
 #define SHOW_NNTC(a, b) (a).write(b, NNTC_SIZE(b))
 #define NNTC_to_string(a) string(a, NNTC_SIZE(a))
-
 using namespace std;
+extern ofstream OFS;
+extern bool FIRST_PRINT;
 
 // POD struct
 typedef struct Data
@@ -84,7 +85,8 @@ public:
     void del_tree(Node *cursor, bool del_leaf = true);
     void bulk_load_parents(queue<Node *> &qu);
     void bulk_load_test(int64_t num);
-    bool search(int64_t x, bool show = true);
+    bool search(int64_t x,
+                bool show = true);
     bool insert(int64_t x, string y,
                 ostream &cso); // return overflow?
     void update_mkey();

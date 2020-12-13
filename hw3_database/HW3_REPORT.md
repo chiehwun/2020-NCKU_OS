@@ -1,22 +1,12 @@
-# ETL Process
+# Key-Value Storages
 
 <!-- ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ -->
-
-<!-- ## 作業說明：
-
-- 中文：https://hackmd.io/@dsclab/rktgrMOUD
-- 英文：https://hackmd.io/@dsclab/B1cxhvp8w
-
---- -->
 
 ## 基本資料
 
 | 學號      | 姓名   | 系級     |
 | --------- | ------ | -------- |
 | E14066282 | 溫梓傑 | 機械 110 |
-
-How to store a B/B+ tree on disk
-HFile, HBase structure
 
 ---
 
@@ -36,39 +26,45 @@ HFile, HBase structure
 
 ## 程式架構簡介
 
-![](https://i.imgur.com/DWvBdYL.png)
+本程式是以 B+ Tree 為基礎，所建構的 Key-value storage 程式，使用 B+ Tree 的好處是，所有資料節點都在樹的最底層，而且 B+ Tree 在插入、刪除的時間皆為 O(log n)，非常適合作為資料庫程式的基礎。
+
+### PUT 指令
+
+![](https://i.imgur.com/DIjvOBH.png)
+
+### GET 指令
+
+![](https://i.imgur.com/6j7JM98.png)
+
+### B+ Tree insertion
+
+程式碼參考自
+https://www.geeksforgeeks.org/insertion-in-a-b-tree/
+P.S. 其實那個網站的程式是有**很多**BUG 的
+![](https://i.imgur.com/XtpF3NZ.png)
+
+### LRU algorithm implementation
+
+程式碼參考自
+https://www.geeksforgeeks.org/lru-cache-implementation/
+
+<!-- ![](https://i.imgur.com/DWvBdYL.png) -->
 
 ## 程式執行時間
 
-### Conversion.cpp
-
-| thread number | execution time |
-| :------------ | -------------- |
-| 1             | 72,461,095 ms  |
-| 2             | 61,880,589 ms  |
-| 3             | 62,515,777 ms  |
-| 4             | 77,312,430 ms  |
-| 5             | 70,012,804 ms  |
-| 6             | 74,730,064 ms  |
-| 7             | 76,904,779 ms  |
-| 8             | 81,442,807 ms  |
-| 9             | 79,445,625 ms  |
-| 10            | 77,947,161 ms  |
-| 11            | 80,149,431 ms  |
-| 12            | 85,100,788 ms  |
-| 13            | 88,232,747 ms  |
-| 14            | 87,634,307 ms  |
-| 15            | 98,887,928 ms  |
-| 16            | 101,510,454 ms |
-| 17            | 99,407,615 ms  |
-| 18            | 99,020,348 ms  |
-| 19            | 94,580,918 ms  |
-| 20            | 104,172,539 ms |
-| 100           | 146,814,795 ms |
+| PUT instr. num | Execution time | \*.file number |
+| :------------- | -------------- | -------------- |
+| 10             | 258 ms         | 1              |
+| 100            | 1,188 ms       | 1              |
+| 1,000          | 18,469 ms      | 1              |
+| 10,000         | 68,453 ms      | 1              |
+| 100,000        | 512,485 ms     | 1              |
+| 1,000,000      | 5,023,911 ms   | 2              |
+| 10,000,000     | 57,848,985 ms  | 5              |
 
 ![](https://i.imgur.com/NCc2pPp.png)
 ::: success
-**[圖一]CPU time v.s. Thread number**
+**[圖一]CPU time v.s. PUT instruction number**
 可以發現在 thread number = 2 時，CPU time 最小，並且在[圖一]中，大致上呈現線性分佈。
 :::
 
@@ -80,7 +76,7 @@ HFile, HBase structure
 # Compile
 $ make
 # Run
-$ ./converter.out [thread]
+$ ./hw3.out [./*.input_file]
 ```
 
 ---
@@ -90,15 +86,16 @@ $ ./converter.out [thread]
 #### 程式執行期間各個 Stage 對電腦資源使用情形
 
 ![](https://i.imgur.com/soPouNd.jpg)
-![](https://i.imgur.com/IRGf6eo.png)
+![](https://i.imgur.com/mqaOILA.png)
+
 :::warning
 **[圖三]、[圖四] 不同階段使用硬體資源之狀況**
 
-| Stage               | CPU                                   | Memory                                 | I/O        |
-| :------------------ | ------------------------------------- | -------------------------------------- | ---------- |
-| 1. 分析資料         | low usage                             | low usage                              | 500 MB/sec |
-| 2. 平行輸出至暫存檔 | high usage 因 conversion 須做字串處理 | low usage 因使用 limited buffer 做讀寫 | 10 MB/sec  |
-| 3. 平行合併檔案     | low usage                             | low usage 因使用 limited buffer 做讀寫 | 457 MB/sec |
+| Stage          | CPU        | Memory         | I/O        |
+| :------------- | ---------- | -------------- | ---------- |
+| Start 程式開始 | high usage | 漸漸升高       | none       |
+| A. Dump File   | high usage | 幾乎 100% 使用 | high usage |
+| B. 程式結束    | low usage  | --             | --         |
 
 :::
 

@@ -27,7 +27,7 @@ int64_t Node::leastRSub(int ptrR)
 {
     if (!this || !this->ptr[ptrR] || ptrR > size)
     {
-        cout << "Node::leastRSub(): err!\n";
+        cerr << "Node::leastRSub(): err!\n";
         exit(EXIT_FAILURE);
     }
     Node *cursor = this->ptr[ptrR];
@@ -89,7 +89,7 @@ BPTree::~BPTree()
 void BPTree::reset_tree()
 {
     this->~BPTree();
-    NodeNum = leafNodeNum = min_key = max_key = 0;
+    NodeNum = leafNodeNum = 0;
     root = NULL;
 }
 
@@ -97,6 +97,7 @@ void BPTree::reset_tree()
 void BPTree::bulk_load_parents(queue<Node *> &qu)
 {
     queue<Node *> qu_parent;
+    // Update node number
     leafNodeNum = NodeNum = qu.size();
     while (qu.size() > 1)
     {
@@ -128,8 +129,7 @@ void BPTree::bulk_load_parents(queue<Node *> &qu)
         qu.swap(qu_parent);
     }
     root = qu.front();
-    visualize(6, cout);
-    check(100, cout);
+    update_mkey();
 }
 
 void BPTree::bulk_load_test(int64_t num)
@@ -154,8 +154,8 @@ void BPTree::bulk_load_test(int64_t num)
         qu.push(leaf);
     }
     NodeNum = qu.size();
-    cout << "HALF: " << HALF << endl;
-    cout << "NodeNum: " << NodeNum << endl;
+    cerr << "HALF: " << HALF << endl;
+    cerr << "NodeNum: " << NodeNum << endl;
     while (qu.size() > 1)
     {
         while (!qu.empty())
@@ -174,7 +174,7 @@ void BPTree::bulk_load_test(int64_t num)
             }
             if (qu.size() == 1)
             {
-                cout << "qu.size = 1" << endl;
+                cerr << "qu.size = 1" << endl;
                 ++nonleaf->size;
                 nonleaf->ptr[nonleaf->size] = qu.front();
                 nonleaf->datum[nonleaf->size - 1].key =
@@ -186,14 +186,14 @@ void BPTree::bulk_load_test(int64_t num)
         qu.swap(qu_parent);
     }
     root = qu.front();
-    visualize(3, cout);
-    check(num, cout);
+    visualize(3, cerr);
+    check(num, cerr);
 }
 
 void BPTree::del_tree(Node *cursor, bool del_leaf)
 {
     // LRV traverse
-    if (!cursor || (del_leaf && cursor->IS_LEAF))
+    if (!cursor || (cursor->IS_LEAF && !del_leaf))
         return;
     // leaf node needless to delete last link
     int n = cursor->IS_LEAF ? cursor->size : cursor->size + 1;
@@ -201,7 +201,7 @@ void BPTree::del_tree(Node *cursor, bool del_leaf)
         del_tree(cursor->ptr[i], del_leaf);
     --NodeNum;
     delete cursor;
-    // cout << "BPtree::NodeNum = " << NodeNum << "\n\n";
+    // cerr << "BPtree::NodeNum = " << NodeNum << "\n\n";
 }
 
 // return true if repeat key exists.
@@ -231,7 +231,7 @@ bool BPTree::search(int64_t x, bool show)
 {
     // If tree is empty
     if (root == NULL)
-        cout << "Tree is empty\n";
+        cerr << "Tree is empty\n";
     // Traverse to find the value
     else
     {
@@ -259,21 +259,24 @@ bool BPTree::search(int64_t x, bool show)
             }
         }
         if (show)
-            cout << "search(" << x << "):";
+            cerr << "search(" << x << "):";
         for (int i = 0; i < cursor->size; i++)
         {
             if (cursor->datum[i].key == x)
             {
+                OFS << (FIRST_PRINT ? "" : "\n");
+                SHOW_NNTC(OFS, cursor->datum[i].str);
                 if (show)
                 {
-                    SHOW_NNTC(cout, cursor->datum[i].str);
-                    cout << "\n";
+                    SHOW_NNTC(cerr, cursor->datum[i].str);
+                    cerr << "\n";
                 }
                 return true;
             }
         }
+        OFS << (FIRST_PRINT ? "" : "\n") << "EMPTY";
         if (show)
-            cout << " Not found.\n";
+            cerr << " Not found.\n";
     }
     return false;
 }
@@ -286,7 +289,9 @@ bool BPTree::insert(int64_t x, string y, ostream &cso)
     // newly created node
     if (root == NULL)
     {
+#ifdef BPTree_DBUG
         cso << "case (A)" << endl;
+#endif
         root = new Node(MAX, true);
         ++NodeNum;
         ++leafNodeNum;
@@ -326,12 +331,15 @@ bool BPTree::insert(int64_t x, string y, ostream &cso)
             int pos_leaf = 0; // pass by reference
             if (locate(x, cursor->datum, cursor->size, pos_leaf))
             {
+#ifdef BPTree_DBUG
                 cso << "case (R0): repeat key = " << x << endl;
+#endif
                 strncpy(cursor->datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
                 return leafNodeNum > NODE_MAX_NUM;
             }
-
+#ifdef BPTree_DBUG
             cso << "case (B): leaf node non-ovf." << endl;
+#endif
             // right shift after pos_leaf
             for (int j = cursor->size; j > pos_leaf; j--)
                 cursor->datum[j] = cursor->datum[j - 1];
@@ -354,7 +362,9 @@ bool BPTree::insert(int64_t x, string y, ostream &cso)
             int pos_leaf = 0; // pass by reference
             if (locate(x, virtualNode.datum, MAX, pos_leaf))
             {
+#ifdef BPTree_DBUG
                 cso << "case (R1): repeat key = " << x << endl;
+#endif
                 strncpy(cursor->datum[pos_leaf].str, y.c_str(), sizeof(Data::str));
                 return leafNodeNum > NODE_MAX_NUM;
             }
@@ -390,7 +400,9 @@ bool BPTree::insert(int64_t x, string y, ostream &cso)
             // If cursor is the root node
             if (cursor == root)
             {
+#ifdef BPTree_DBUG
                 cso << "case (C)" << endl;
+#endif
                 // Create a new Node
                 Node *newRoot = new Node(MAX, false);
                 ++NodeNum;
@@ -431,7 +443,9 @@ void BPTree::insertInternal(int64_t x,
     // If parent not overflow
     if (cursor->size < MAX)
     {
+#ifdef BPTree_DBUG
         cso << "case (D): call insertInternal()" << endl;
+#endif
         // Traverse the child node
         // for current cursor node
         int pos = 0; // pass by reference
@@ -507,7 +521,9 @@ void BPTree::insertInternal(int64_t x,
         // If cursor is the root node
         if (cursor == root)
         {
+#ifdef BPTree_DBUG
             cso << "case (E): call insertInternal()" << endl;
+#endif
             // Create a new root node
             Node *newRoot = new Node(MAX, false);
             ++NodeNum;
@@ -523,7 +539,9 @@ void BPTree::insertInternal(int64_t x,
         }
         else
         {
+#ifdef BPTree_DBUG
             cso << "case (F): call insertInternal()" << endl;
+#endif
             // Recursive Call to insert the data
             insertInternal(virtualKey[cursor->size],
                            parent_stack,
