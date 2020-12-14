@@ -36,7 +36,7 @@ hw3.out: hw3.o db.o BPTree.o Clock.o
 	g++ -o hw3.out hw3.o db.o BPTree.o Clock.o -Wall -g
 
 clean:
-	rm *.out *.o -v
+	rm *.out *.o *output /storage/*.file -v
 
 cleanmem:
 	sudo sh -c 'free -m && echo 1 > /proc/sys/vm/drop_caches && free -m'

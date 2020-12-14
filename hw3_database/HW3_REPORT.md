@@ -26,7 +26,33 @@
 
 ## 程式架構簡介
 
-本程式是以 B+ Tree 為基礎，所建構的 Key-value storage 程式，使用 B+ Tree 的好處是，所有資料節點都在樹的最底層，而且 B+ Tree 在插入、刪除的時間皆為 O(log n)，非常適合作為資料庫程式的基礎。
+本程式是以 B+ Tree 為基礎，所建構的 Key-value storage 程式，使用 B+ Tree 的好處是，所有資料節點都在樹的最底層，適合連續存取，而且 B+ Tree 在插入、刪除的時間皆為 O(log n)，非常適合作為資料庫程式的基礎。
+
+### 檔案結構
+
+為了加速寫入與讀取速度，這次採用二進位格式來存取，一筆資料為`Key(8 bytes)+Value(128 bytes)`，共 136 bytes。
+
+- 定義一個 Block 大約等於 4 KB，`4K/136 = 30`，因此一個 Block 有 30 筆資料。
+
+- 定義一個檔案最多存有 500MB 的資料，500M/4K = 131,586，因此一個檔案最多 131,586 個 block
+
+#### 檔案結構如下所示：
+
+| Key Value Content            |
+| ---------------------------- |
+| -----(Cache start pos)------ |
+| Max key for each block       |
+| cache_beg_pos                |
+| Min key for file             |
+| Max key for file             |
+
+### 檔案如何擴充
+
+本人將檔案限制其大小約 500M 左右，一個檔案一旦偵測到過大，它會自己分裂成兩個半滿的檔案。
+
+### Cache 機制
+
+當資料庫在初始化時，會讀取每個檔案的 Max key for each block ，來提昇 GET 指令的速度。
 
 ### PUT 指令
 
@@ -45,6 +71,9 @@ P.S. 其實那個網站的程式是有**很多**BUG 的
 
 ### LRU algorithm implementation
 
+當記憶體不足時(假設 4GB)，LRU 演算法會把最近最少用(PUT)的檔案，dump 至 disk 以節省記憶體資源。
+但是在 dump 的過程中，會大量消耗 I/O 資源，且程式執行會被卡住。
+
 程式碼參考自
 https://www.geeksforgeeks.org/lru-cache-implementation/
 
@@ -62,10 +91,11 @@ https://www.geeksforgeeks.org/lru-cache-implementation/
 | 1,000,000      | 5,023,911 ms   | 2              |
 | 10,000,000     | 57,848,985 ms  | 5              |
 
-![](https://i.imgur.com/NCc2pPp.png)
+![](https://i.imgur.com/U0bj75l.png)
+
 ::: success
 **[圖一]CPU time v.s. PUT instruction number**
-可以發現在 thread number = 2 時，CPU time 最小，並且在[圖一]中，大致上呈現線性分佈。
+可以發現在 並且在[圖一]中，大致上與 nlogn 理論值相符。
 :::
 
 ## 程式開發與使用說明
@@ -76,7 +106,7 @@ https://www.geeksforgeeks.org/lru-cache-implementation/
 # Compile
 $ make
 # Run
-$ ./hw3.out [./*.input_file]
+$ ./hw3.out [./...(path)/*.input_file]
 ```
 
 ---
@@ -85,34 +115,32 @@ $ ./hw3.out [./*.input_file]
 
 #### 程式執行期間各個 Stage 對電腦資源使用情形
 
-![](https://i.imgur.com/soPouNd.jpg)
 ![](https://i.imgur.com/mqaOILA.png)
 
 :::warning
 **[圖三]、[圖四] 不同階段使用硬體資源之狀況**
 
-| Stage          | CPU        | Memory         | I/O        |
-| :------------- | ---------- | -------------- | ---------- |
-| Start 程式開始 | high usage | 漸漸升高       | none       |
-| A. Dump File   | high usage | 幾乎 100% 使用 | high usage |
-| B. 程式結束    | low usage  | --             | --         |
+| Stage           | CPU        | Memory     | I/O        |
+| :-------------- | ---------- | ---------- | ---------- |
+| start. 程式開始 | high usage | high usage | low usage  |
+| A. Dump to disk | high usage | high usage | high usage |
+| B. 程式結束     | low usage  | low usage  | low usage  |
 
 :::
 
 #### 結論
 
 從以上實驗可以看出，作業系統在背後做了非常多優化服務，包括 CPU 資源分配(即行程管理)、記憶體管理、虛擬記憶體管理、Disk I/O 管理等。
-目前完成兩個作業後，我發現最大的困難總是在 I/O 處理速度，程式的平行度再高，也無法克服這個障礙，因此我認為，作業系統或許在 I/O 資源分配時，能夠提供一些 API 來設定優先度等等細節處理。
+本次作業最花時間的地方在於一開始的規劃，如何從外部檔案快速找到目標檔案，找到檔案後，還要快速尋找檔案中的資料，後來決定用 Cache 的方法實做，從摸索到完成整個概念的設計就花了不少時間。
+由於程式的瓶頸往往是 I/O 處理速度，因此如何減少 I/O 的次數是改善程式速度的最大關鍵。
 
 ### 改善之處
 
-由於此程式是假設 CSV 檔案大小可能超過記憶體大小下去設計的，因此限縮了記憶體使用資源，需要依靠大量的 IO 讀寫，而 IO 讀寫正是此程式的最大瓶頸。
-在此提出一些可以改善之處：
+本程式還有很多改善的空間，在此提出一些可以改善之處：
 
-1. 可以將程式設定成兩種模式，分別為大檔模式與小檔模式，於偵測檔案大小後做出判斷。
-   - 大檔模式：限制 Memory 資源(過程參考上述程式架構)
-   - 小檔模式：把全部資料讀進記憶體，再進行單一 thread 輸出
-2. 對於"平行輸出至暫存檔"階段再進行優化，因為他是整個程式中執行最慢的部份(雖然我已經盡力ㄌ QQ)。
+1. 在不會發生 Data Race 的情況下，加入平行處理(雖然我認為這個改善效果不會很顯著)
+2. 先『偷看一些』未來的指令，把指令 Rearrange，再統一對資料庫進行操作。
+3. 本程式在 Cache 的部份其實還有些 BUG，因為在資料庫初始化時，會強制讀取所有檔案的 Cache，因此若檔案過多，Cache 可能會導致記憶體空間不足。
 
 ## Contact
 
